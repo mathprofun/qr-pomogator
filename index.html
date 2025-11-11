@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Серийный QR-помогатор</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="pomogator-logo.png" alt="Логотип" class="logo">
+            <h1>Серийный QR-помогатор</h1>
+        </div>
+        <form id="pdfForm">
+            <div class="form-group">
+                <label for="pdfFile"><b>Выберите прототип PDF для тиражирования:</b></label>
+                <input class="small-margin" type="file" id="pdfFile" accept=".pdf" required>
+            </div>
+            <div class="form-group">
+                <label for="codeTemplate"><b>Шаблон кода (латиница, дефис, цифры):</b></label>
+                <input class="small-margin" type="text" id="codeTemplate" placeholder="например: KMO-{00001}" required maxlength="12">
+                <label class="small-margin" for="codeTemplate"><i>в {...} укажите стартовый номер
+                    <br>A-{001} создаст коды A-001, A-002, ..., A-999
+                    <br>максимальная длина кода - 10 символов</i>
+                </label>
+            </div>
+            <div class="form-group">
+                <label for="numCopies"><b>Количество копий:</b></label>
+                <input class="small-margin" type="number" id="numCopies" min="1" max="10000" value="10" required>
+            </div>
+            <button type="submit" id="generateBtn">Генерировать копии PDF с кодами </button>
+        </form>
+        <div id="progress" style="display: none;">
+            <p>Генерация... <span id="progressText"></span></p>
+        </div>
+        <div id="downloadLink" style="display: none;">
+            <a id="downloadBtn" href="#" download>Скачать ZIP с PDF</a>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
