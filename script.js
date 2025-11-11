@@ -17,7 +17,7 @@ document.getElementById('pdfForm').addEventListener('submit', async function(e) 
     }
 
     // Парсим шаблон
-    const templateMatch = codeTemplate.match(/^(.+)\{(.+)\}(.*)$/);
+    const templateMatch = codeTemplate.match(/^(.*)\{(.+)\}(.*)$/);
     if (!templateMatch) {
         alert('Неверный формат шаблона. Используйте формат: PREFIX{START}SUFFIX');
         return;
