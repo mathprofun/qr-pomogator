@@ -58,6 +58,10 @@ input[type="file"], input[type="number"], input[type="text"] {
     box-sizing: border-box;
 }
 
+input[type="checkbox"] {
+    margin-right: 8px;
+}
+
 button {
     width: 100%;
     padding: 10px;

@@ -4,6 +4,7 @@ document.getElementById('pdfForm').addEventListener('submit', async function(e) 
     const fileInput = document.getElementById('pdfFile');
     const numCopies = parseInt(document.getElementById('numCopies').value);
     const codeTemplate = document.getElementById('codeTemplate').value;
+    const singlePdf = document.getElementById('singlePdf').checked;
     const generateBtn = document.getElementById('generateBtn');
     const progress = document.getElementById('progress');
     const progressText = document.getElementById('progressText');
@@ -37,34 +38,47 @@ document.getElementById('pdfForm').addEventListener('submit', async function(e) 
     downloadLink.style.display = 'none';
 
     try {
-        const zip = new JSZip();
         const originalPdfBytes = await fileInput.files[0].arrayBuffer();
 
-        for (let i = 0; i < numCopies; i++) {
-            progressText.textContent = `${i + 1}/${numCopies}`;
+        if (singlePdf) {
+            // Генерируем один большой PDF
+            const singlePdfBlob = await generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, width, suffix, progressText);
+            const pdfUrl = URL.createObjectURL(singlePdfBlob);
 
-            const currentNum = startNum + i;
-            const numStr = currentNum.toString().padStart(width, '0');
-            const serialNumber = prefix + numStr + suffix;
+            downloadBtn.href = pdfUrl;
+            downloadBtn.download = prefix + 'series.pdf';
+            downloadBtn.textContent = 'Скачать PDF';
+        } else {
+            // Генерируем ZIP с отдельными PDF
+            const zip = new JSZip();
 
-            // Генерируем QR-код
-            const qrDataUrl = await generateQR(serialNumber);
+            for (let i = 0; i < numCopies; i++) {
+                progressText.textContent = `${i + 1}/${numCopies}`;
 
-            // Модифицируем PDF
-            const modifiedPdfBytes = await modifyPDF(originalPdfBytes, serialNumber, qrDataUrl);
+                const currentNum = startNum + i;
+                const numStr = currentNum.toString().padStart(width, '0');
+                const serialNumber = prefix + numStr + suffix;
 
-            // Добавляем в ZIP
-            zip.file(`${serialNumber}.pdf`, modifiedPdfBytes);
+                // Генерируем QR-код
+                const qrDataUrl = await generateQR(serialNumber);
+
+                // Модифицируем PDF
+                const modifiedPdfBytes = await modifyPDF(originalPdfBytes, serialNumber, qrDataUrl);
+
+                // Добавляем в ZIP
+                zip.file(`${serialNumber}.pdf`, modifiedPdfBytes);
+            }
+
+            // Создаем ZIP файл
+            const zipBlob = await zip.generateAsync({type: 'blob'});
+            const zipUrl = URL.createObjectURL(zipBlob);
+
+            downloadBtn.href = zipUrl;
+            downloadBtn.download = prefix + 'series.zip';
+            downloadBtn.textContent = 'Скачать ZIP с PDF';
         }
 
-        // Создаем ZIP файл
-        const zipBlob = await zip.generateAsync({type: 'blob'});
-        const zipUrl = URL.createObjectURL(zipBlob);
-
-        downloadBtn.href = zipUrl;
-        downloadBtn.download = prefix + 'series.zip';
         downloadLink.style.display = 'block';
-
         progress.style.display = 'none';
         generateBtn.disabled = false;
 
@@ -85,28 +99,97 @@ async function generateQR(text) {
     return qr.toDataURL();
 }
 
+async function generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, width, suffix, progressText) {
+    const newPdfDoc = await PDFLib.PDFDocument.create();
+    const originalPdfDoc = await PDFLib.PDFDocument.load(originalPdfBytes);
+    const font = await newPdfDoc.embedStandardFont(PDFLib.StandardFonts.Helvetica);
+
+    for (let i = 0; i < numCopies; i++) {
+        progressText.textContent = `${i + 1}/${numCopies}`;
+
+        const currentNum = startNum + i;
+        const numStr = currentNum.toString().padStart(width, '0');
+        const serialNumber = prefix + numStr + suffix;
+
+        // Генерируем QR-код
+        const qrDataUrl = await generateQR(serialNumber);
+
+        // Извлекаем PNG данные из data URL
+        const base64 = qrDataUrl.split(',')[1];
+        const pngBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
+        // Загружаем QR как изображение
+        const qrImage = await newPdfDoc.embedPng(pngBytes);
+
+        // Размер QR: 2 см = 56.69 пунктов (при 72 DPI)
+        const qrSize = 56.69;
+
+        // Копируем все страницы из оригинального PDF
+        // Копируем все страницы из оригинального PDF
+        const originalPages = originalPdfDoc.getPages();
+        for (let i = 0; i < originalPages.length; i++) {
+            const originalPage = originalPages[i];
+            const size = originalPage.getSize();
+            let page;
+            if (isNaN(size.width) || isNaN(size.height) || size.width <= 0 || size.height <= 0) {
+                // Если размер страницы недействителен, добавляем пустую страницу A4
+                page = newPdfDoc.addPage([595.28, 841.89]);
+            } else {
+                const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+                page = newPdfDoc.addPage(copiedPage);
+            }
+
+            const { width: pageWidth, height: pageHeight } = page.getSize();
+
+            // Позиция: верхний правый угол, с отступом
+            const qrX = pageWidth - qrSize - 32;
+            const qrY = pageHeight - qrSize - 32;
+
+            // Рисуем QR
+            page.drawImage(qrImage, {
+                x: qrX,
+                y: qrY,
+                width: qrSize,
+                height: qrSize,
+            });
+
+            // Добавляем текст под QR
+            page.drawText(serialNumber, {
+                x: qrX + qrSize - font.widthOfTextAtSize(serialNumber, 13),
+                y: qrY - 15,
+                size: 13,
+                font: font,
+                color: PDFLib.rgb(0, 0, 0),
+            });
+        }
+    }
+
+    const pdfBytes = await newPdfDoc.save();
+    return new Blob([pdfBytes], { type: 'application/pdf' });
+}
+
 async function modifyPDF(pdfBytes, serialNumber, qrDataUrl) {
     const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes);
     const font = await pdfDoc.embedStandardFont(PDFLib.StandardFonts.Helvetica);
     const pages = pdfDoc.getPages();
-    
+
     // Извлекаем PNG данные из data URL
     const base64 = qrDataUrl.split(',')[1];
     const pngBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-    
+
     // Загружаем QR как изображение
     const qrImage = await pdfDoc.embedPng(pngBytes);
-    
+
     // Размер QR: 2 см = 56.69 пунктов (при 72 DPI)
     const qrSize = 56.69;
-    
+
     pages.forEach(page => {
         const { width, height } = page.getSize();
-        
+
         // Позиция: верхний правый угол, с отступом
-        const qrX = width - qrSize - 20;
-        const qrY = height - qrSize - 20;
-        
+        const qrX = width - qrSize - 32;
+        const qrY = height - qrSize - 32;
+
         // Рисуем QR
         page.drawImage(qrImage, {
             x: qrX,
@@ -114,16 +197,16 @@ async function modifyPDF(pdfBytes, serialNumber, qrDataUrl) {
             width: qrSize,
             height: qrSize,
         });
-        
+
        // Добавляем текст под QR
         page.drawText(serialNumber, {
-            x: qrX + qrSize - font.widthOfTextAtSize(serialNumber, 14),
+            x: qrX + qrSize - font.widthOfTextAtSize(serialNumber, 13),
             y: qrY - 15,
-            size: 14,
+            size: 13,
             font: font,
             color: PDFLib.rgb(0, 0, 0),
         });
     });
-    
+
     return await pdfDoc.save();
 }

@@ -19,17 +19,21 @@
             </div>
             <div class="form-group">
                 <label for="codeTemplate"><b>Шаблон кода (латиница, дефис, цифры):</b></label>
-                <input class="small-margin" type="text" id="codeTemplate" placeholder="например: KMO-{00001}" required maxlength="12">
+                <input class="small-margin" type="text" id="codeTemplate" placeholder="например: KM-{0001}" required maxlength="9">
                 <label class="small-margin" for="codeTemplate"><i>в {...} укажите стартовый номер
                     <br>A-{001} создаст коды A-001, A-002, ..., A-999
-                    <br>максимальная длина кода - 10 символов</i>
+                    <br>максимальная длина кода - 7 символов</i>
                 </label>
             </div>
             <div class="form-group">
                 <label for="numCopies"><b>Количество копий:</b></label>
                 <input class="small-margin" type="number" id="numCopies" min="1" max="10000" value="10" required>
             </div>
-            <button type="submit" id="generateBtn">Генерировать копии PDF с кодами </button>
+            <div class="form-group">
+                <label for="singlePdf">
+                    <input type="checkbox" id="singlePdf">Общий PDF вместо ZIP-пакета с сериями поштучно</label>
+            </div>
+            <button type="submit" id="generateBtn">Генерировать PDF с кодами </button>
         </form>
         <div id="progress" style="display: none;">
             <p>Генерация... <span id="progressText"></span></p>
@@ -44,4 +48,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
