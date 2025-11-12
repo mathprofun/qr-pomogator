@@ -1,3 +1,99 @@
+let qrX, qrY; // Глобальные переменные для позиции QR
+let pageWidth, pageHeight; // Размеры страницы
+
+document.getElementById('pdfFile').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const previewContainer = document.getElementById('previewContainer');
+    const canvas = document.getElementById('pdfCanvas');
+    const qrImg = document.getElementById('qrPreview');
+
+    try {
+        // Загружаем PDF с pdf.js
+        const pdfData = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: pdfData}).promise;
+        const page = await pdf.getPage(1);
+
+        // Получаем размеры страницы
+        const viewport = page.getViewport({scale: 1});
+        pageWidth = viewport.width;
+        pageHeight = viewport.height;
+
+        // Рендерим страницу в canvas
+        canvas.width = pageWidth;
+        canvas.height = pageHeight;
+        const context = canvas.getContext('2d');
+        const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+        };
+        await page.render(renderContext).promise;
+
+        // Генерируем QR для примера (первый номер)
+        const exampleSerial = 'KM-0001'; // Пример
+        const qrDataUrl = await generateQR(exampleSerial);
+        qrImg.src = qrDataUrl;
+
+        // Устанавливаем позицию по умолчанию: отступ 32px сверху и справа
+        const qrSize = 56.69; // 2 см
+        qrX = pageWidth - qrSize - 32;
+        qrY = pageHeight - qrSize - 32;
+
+        qrImg.style.left = qrX + 'px';
+        qrImg.style.top = (pageHeight - qrY - qrSize) + 'px';
+
+        // Показываем preview
+        previewContainer.style.display = 'block';
+
+    } catch (error) {
+        console.error('Ошибка при загрузке PDF:', error);
+        alert('Ошибка при загрузке PDF: ' + error.message);
+    }
+});
+
+// Обработчики для перетаскивания QR
+let isDragging = false;
+let dragStartX, dragStartY;
+
+const qrImg = document.getElementById('qrPreview');
+
+qrImg.addEventListener('mousedown', function(e) {
+    isDragging = true;
+    dragStartX = e.clientX - parseFloat(this.style.left || 0);
+    dragStartY = e.clientY - parseFloat(this.style.top || 0);
+    this.style.cursor = 'grabbing';
+    e.preventDefault();
+});
+
+document.addEventListener('mousemove', function(e) {
+    if (isDragging) {
+        const newX = e.clientX - dragStartX;
+        const newY = e.clientY - dragStartY;
+
+        // Ограничиваем позицию в пределах canvas
+        const qrSize = 56;
+        const maxX = pageWidth - qrSize;
+        const maxY = pageHeight - qrSize;
+
+        const clampedX = Math.max(0, Math.min(newX, maxX));
+        const clampedY = Math.max(0, Math.min(newY, maxY));
+
+        qrX = clampedX;
+        qrY = pageHeight - clampedY - qrSize; // Конвертируем в PDF координаты
+
+        qrImg.style.left = clampedX + 'px';
+        qrImg.style.top = clampedY + 'px';
+    }
+});
+
+document.addEventListener('mouseup', function(e) {
+    if (isDragging) {
+        isDragging = false;
+        qrImg.style.cursor = 'move';
+    }
+});
+
 document.getElementById('pdfForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
@@ -139,12 +235,7 @@ async function generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, 
                 page = newPdfDoc.addPage(copiedPage);
             }
 
-            const { width: pageWidth, height: pageHeight } = page.getSize();
-
-            // Позиция: верхний правый угол, с отступом
-            const qrX = pageWidth - qrSize - 32;
-            const qrY = pageHeight - qrSize - 32;
-
+            // Используем позицию из предварительного просмотра
             // Рисуем QR
             page.drawImage(qrImage, {
                 x: qrX,
@@ -184,12 +275,7 @@ async function modifyPDF(pdfBytes, serialNumber, qrDataUrl) {
     const qrSize = 56.69;
 
     pages.forEach(page => {
-        const { width, height } = page.getSize();
-
-        // Позиция: верхний правый угол, с отступом
-        const qrX = width - qrSize - 32;
-        const qrY = height - qrSize - 32;
-
+        // Используем позицию из предварительного просмотра
         // Рисуем QR
         page.drawImage(qrImage, {
             x: qrX,

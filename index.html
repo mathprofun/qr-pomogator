@@ -42,9 +42,17 @@
             <a id="downloadBtn" href="#" download>Скачать ZIP с PDF</a>
         </div>
     </div>
+        <div class="preview-wrapper" id="previewContainer" style="display: none;">
+            <h2>Предварительный просмотр</h2>
+            <div id="pdfPreview">
+                <canvas id="pdfCanvas"></canvas>
+                <img id="qrPreview" src="" alt="QR-код" draggable="true">
+            </div>
+        </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
