@@ -30,8 +30,21 @@
                 <input class="small-margin" type="number" id="numCopies" min="1" max="10000" value="10" required>
             </div>
             <div class="form-group">
-                <label for="singlePdf">
-                    <input type="checkbox" id="singlePdf">Общий PDF вместо ZIP-пакета с сериями поштучно</label>
+                <label><b>Режим генерации:</b></label>
+                <div class="radio-group">
+                    <div>
+                        <input type="radio" id="singlePdf" name="outputMode" value="single" checked>
+                        <label for="singlePdf">Общий PDF</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="zipMode" name="outputMode" value="zip">
+                        <label for="zipMode">ZIP-пакет (каждая серия отдельным PDF)</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="perPageMode" name="outputMode" value="perPage">
+                        <label for="perPageMode">Новый код на каждый лист</label>
+                    </div>
+                </div>
             </div>
             <button type="submit" id="generateBtn">Генерировать PDF с кодами </button>
         </form>

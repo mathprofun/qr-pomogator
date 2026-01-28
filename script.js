@@ -100,7 +100,7 @@ document.getElementById('pdfForm').addEventListener('submit', async function(e) 
     const fileInput = document.getElementById('pdfFile');
     const numCopies = parseInt(document.getElementById('numCopies').value);
     const codeTemplate = document.getElementById('codeTemplate').value;
-    const singlePdf = document.getElementById('singlePdf').checked;
+    const outputMode = document.querySelector('input[name="outputMode"]:checked').value;
     const generateBtn = document.getElementById('generateBtn');
     const progress = document.getElementById('progress');
     const progressText = document.getElementById('progressText');
@@ -136,15 +136,15 @@ document.getElementById('pdfForm').addEventListener('submit', async function(e) 
     try {
         const originalPdfBytes = await fileInput.files[0].arrayBuffer();
 
-        if (singlePdf) {
+        if (outputMode === 'single') {
             // Генерируем один большой PDF
-            const singlePdfBlob = await generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, width, suffix, progressText);
+            const singlePdfBlob = await generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, width, suffix, progressText, 'single');
             const pdfUrl = URL.createObjectURL(singlePdfBlob);
 
             downloadBtn.href = pdfUrl;
             downloadBtn.download = prefix + 'series.pdf';
             downloadBtn.textContent = 'Скачать PDF';
-        } else {
+        } else if (outputMode === 'zip') {
             // Генерируем ZIP с отдельными PDF
             const zip = new JSZip();
 
@@ -172,6 +172,14 @@ document.getElementById('pdfForm').addEventListener('submit', async function(e) 
             downloadBtn.href = zipUrl;
             downloadBtn.download = prefix + 'series.zip';
             downloadBtn.textContent = 'Скачать ZIP с PDF';
+        } else if (outputMode === 'perPage') {
+            // Генерируем PDF с новым кодом на каждый лист
+            const perPagePdfBlob = await generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, width, suffix, progressText, 'perPage');
+            const pdfUrl = URL.createObjectURL(perPagePdfBlob);
+
+            downloadBtn.href = pdfUrl;
+            downloadBtn.download = prefix + 'series.pdf';
+            downloadBtn.textContent = 'Скачать PDF';
         }
 
         downloadLink.style.display = 'block';
@@ -195,43 +203,43 @@ async function generateQR(text) {
     return qr.toDataURL();
 }
 
-async function generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, width, suffix, progressText) {
+async function generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, width, suffix, progressText, mode = 'single') {
     const newPdfDoc = await PDFLib.PDFDocument.create();
     const originalPdfDoc = await PDFLib.PDFDocument.load(originalPdfBytes);
     const font = await newPdfDoc.embedStandardFont(PDFLib.StandardFonts.Helvetica);
 
+    const originalPages = originalPdfDoc.getPages();
+    let codeIndex = 0;
+
     for (let i = 0; i < numCopies; i++) {
         progressText.textContent = `${i + 1}/${numCopies}`;
 
-        const currentNum = startNum + i;
-        const numStr = currentNum.toString().padStart(width, '0');
-        const serialNumber = prefix + numStr + suffix;
+        for (let j = 0; j < originalPages.length; j++) {
+            const currentNum = startNum + codeIndex;
+            const numStr = currentNum.toString().padStart(width, '0');
+            const serialNumber = prefix + numStr + suffix;
 
-        // Генерируем QR-код
-        const qrDataUrl = await generateQR(serialNumber);
+            // Генерируем QR-код
+            const qrDataUrl = await generateQR(serialNumber);
 
-        // Извлекаем PNG данные из data URL
-        const base64 = qrDataUrl.split(',')[1];
-        const pngBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            // Извлекаем PNG данные из data URL
+            const base64 = qrDataUrl.split(',')[1];
+            const pngBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
-        // Загружаем QR как изображение
-        const qrImage = await newPdfDoc.embedPng(pngBytes);
+            // Загружаем QR как изображение
+            const qrImage = await newPdfDoc.embedPng(pngBytes);
 
-        // Размер QR: 2 см = 56.69 пунктов (при 72 DPI)
-        const qrSize = 56.69;
+            // Размер QR: 2 см = 56.69 пунктов (при 72 DPI)
+            const qrSize = 56.69;
 
-        // Копируем все страницы из оригинального PDF
-        // Копируем все страницы из оригинального PDF
-        const originalPages = originalPdfDoc.getPages();
-        for (let i = 0; i < originalPages.length; i++) {
-            const originalPage = originalPages[i];
+            const originalPage = originalPages[j];
             const size = originalPage.getSize();
             let page;
             if (isNaN(size.width) || isNaN(size.height) || size.width <= 0 || size.height <= 0) {
                 // Если размер страницы недействителен, добавляем пустую страницу A4
                 page = newPdfDoc.addPage([595.28, 841.89]);
             } else {
-                const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [i]);
+                const [copiedPage] = await newPdfDoc.copyPages(originalPdfDoc, [j]);
                 page = newPdfDoc.addPage(copiedPage);
             }
 
@@ -252,6 +260,14 @@ async function generateSinglePDF(originalPdfBytes, numCopies, prefix, startNum, 
                 font: font,
                 color: PDFLib.rgb(0, 0, 0),
             });
+
+            if (mode === 'perPage') {
+                codeIndex++;
+            }
+        }
+
+        if (mode === 'single') {
+            codeIndex++;
         }
     }
 

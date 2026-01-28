@@ -72,6 +72,23 @@ input[type="checkbox"] {
     margin-right: 8px;
 }
 
+.radio-group {
+    margin-left: 20px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.radio-group input[type="radio"] {
+    margin-right: 8px;
+}
+
+.radio-group label {
+    display: inline;
+    margin-bottom: 0;
+}
+
 button {
     width: 100%;
     padding: 10px;
